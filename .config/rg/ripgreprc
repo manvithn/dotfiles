@@ -1,0 +1,5 @@
+# Better default + fd consistency
+--smart-case
+
+# Using glob patterns to exclude btrfs_pool
+--glob=!/btrfs_pool/*
