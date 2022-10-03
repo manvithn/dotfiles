@@ -111,6 +111,9 @@ alias diff='diff --color=auto'
 alias ip='ip -color=auto -human-readable'
 alias ls='ls --color=auto --human-readable'
 
+# kittens
+alias kdiff='kitty +kitten diff'
+
 git-clone-bare() {
     # Examples of call:
     # git-clone-bare git@github.com:name/repo.git

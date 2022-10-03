@@ -3,6 +3,17 @@
 	email = manvithn@gmail.com
 [credential "https://github.com"]
 	helper = !/usr/bin/gh auth git-credential
+[diff]
+    tool = kitty
+    guitool = kitty.gui
+[difftool]
+    prompt = false
+    trustExitCode = true
+[difftool "kitty"]
+    cmd = kitty +kitten diff $LOCAL $REMOTE
+[difftool "kitty.gui"]
+    cmd = kitty kitty +kitten diff $LOCAL $REMOTE
 [alias]
 	ls = log --oneline
 	adog = log --all --decorate --oneline --graph
+	kdiff = difftool --no-symlinks --dir-diff
