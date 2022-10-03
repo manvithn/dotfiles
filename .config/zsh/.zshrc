@@ -111,6 +111,28 @@ alias diff='diff --color=auto'
 alias ip='ip -color=auto -human-readable'
 alias ls='ls --color=auto --human-readable'
 
+git-clone-bare() {
+    # Examples of call:
+    # git-clone-bare git@github.com:name/repo.git
+    # => Clones to /repo directory
+    # git-clone-bare git@github.com:name/repo.git my-repo
+    # => Clones to /my-repo directory
+
+    local url="$1"
+    local basename="${url##*/}"
+    local name="${2:-${basename%.*}}"
+
+    git clone --bare "$url" "$name" &&
+
+    pushd "$name" &&
+    git config --local status.showUntrackedFiles no &&
+    # Explicitly sets the remote origin fetch so we can fetch remote branches
+    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*" &&
+    # Gets all branches from origin
+    git fetch origin &&
+    popd
+}
+
 # dotfile sync
 alias dotgit='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
 
