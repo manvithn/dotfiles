@@ -1,0 +1,8 @@
+[user]
+	name = Manvith Narahari
+	email = manvithn@gmail.com
+[credential "https://github.com"]
+	helper = !/usr/bin/gh auth git-credential
+[alias]
+	ls = log --oneline
+	adog = log --all --decorate --oneline --graph
