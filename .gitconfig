@@ -1,8 +1,6 @@
 [user]
-	name = Manvith Narahari
-	email = manvithn@gmail.com
-[credential "https://github.com"]
-	helper = !/usr/bin/gh auth git-credential
+    name = Manvith Narahari
+    email = manvithn@gmail.com
 [diff]
     tool = kitty
     guitool = kitty.gui
@@ -14,6 +12,12 @@
 [difftool "kitty.gui"]
     cmd = kitty kitty +kitten diff $LOCAL $REMOTE
 [alias]
-	ls = log --oneline
-	adog = log --all --decorate --oneline --graph
-	kdiff = difftool --no-symlinks --dir-diff
+    ls = log --oneline
+    adog = log --all --decorate --oneline --graph
+    kdiff = difftool --no-symlinks --dir-diff
+[credential "https://github.com"]
+    helper = 
+    helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+    helper = 
+    helper = !/opt/homebrew/bin/gh auth git-credential

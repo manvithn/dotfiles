@@ -60,8 +60,48 @@ if ! zgenom saved; then
   zgenom save
 fi
 
+# support brew's completion scripts
+if type brew &>/dev/null
+then
+  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
+fi
+
 # support bash completion scripts
 autoload -U +X bashcompinit && bashcompinit
+
+## environment and appearance
+
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+path=(
+  "$HOME/.local/bin"
+  "$HOME/.local/share/android_sdk/cmdline-tools/latest/bin"
+  "$HOME/.local/share/android_sdk/platform-tools"
+  "$HOME/.local/share/android_sdk/ndk-bundle"
+  "$HOME/homebrew/bin"
+  "$HOME/homebrew/sbin"
+  $path
+)
+
+# export to sub-processes (make it inherited by child processes)
+export PATH
+
+. "$HOME/.cargo/env"
+
+export VISUAL="/opt/homebrew/bin/nvim"
+alias vim=nvim
+
+export RIPGREP_CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/rg/ripgreprc"
+
+# add color output
+# diff alias breaks autocomplete on macOS
+# alias diff="diff --color=auto"
+alias ip="ip -color=auto -human-readable"
+alias ls="gls --color=auto --human-readable"
+
+# kittens
+alias kdiff='kitty +kitten diff'
+alias kssh='kitty +kitten ssh'
 
 ## key bindings
 
@@ -87,32 +127,16 @@ FZF_CTRL_T_COMMAND="fd -H -L -t=f -t=d -t=l -c=always --strip-cwd-prefix"
 FZF_ALT_C_COMMAND="fd -H -L -t=d -c=always --strip-cwd-prefix"
 FZF_DEFAULT_OPTS="--ansi"
 
-source /usr/share/fzf/key-bindings.zsh
-source /usr/share/fzf/completion.zsh
+source <(fzf --zsh)
 
 # change fzf-cd-widget keybinding from alt-c to ctrl-f
 bindkey -r '\ec'
 bindkey '^F' fzf-cd-widget
 
-## environment and appearance
+## dotgit
 
-path=(
-  "$HOME/.local/bin"
-  $path
-)
-
-export VISUAL="/usr/bin/nvim"
-alias vim=nvim
-
-export RIPGREP_CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/rg/ripgreprc"
-
-# add color output
-alias diff='diff --color=auto'
-alias ip='ip -color=auto -human-readable'
-alias ls='ls --color=auto --human-readable'
-
-# kittens
-alias kdiff='kitty +kitten diff'
+# Run dotgit-clone-bare in order to use dotgit, then delete .dotfiles when finished
+alias dotgit='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
 
 git-clone-bare() {
     # Examples of call:
@@ -136,45 +160,11 @@ git-clone-bare() {
     popd
 }
 
-# dotfile sync
-alias dotgit='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
-
-# kdesrc-build #################################################################
-
-## Add kdesrc-build to PATH
-export PATH="$HOME/kde/src/kdesrc-build:$PATH"
-
-## Autocomplete for kdesrc-run
-function _comp-kdesrc-run
-{
-  local cur
-  COMPREPLY=()
-  cur="${COMP_WORDS[COMP_CWORD]}"
-
-  # Complete only the first argument
-  if [[ $COMP_CWORD != 1 ]]; then
-    return 0
-  fi
-
-  # Retrieve build modules through kdesrc-run
-  # If the exit status indicates failure, set the wordlist empty to avoid
-  # unrelated messages.
-  local modules
-  if ! modules=$(kdesrc-run --list-installed);
-  then
-      modules=""
-  fi
-
-  # Return completions that match the current word
-  COMPREPLY=( $(compgen -W "${modules}" -- "$cur") )
-
-  return 0
+dotgit-clone-bare() {
+    pushd
+    git-clone-bare https://github.com/manvithn/dotfiles.git .dotfiles
+    popd
 }
-
-## Register autocomplete function
-complete -o nospace -F _comp-kdesrc-run kdesrc-run
-
-################################################################################
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh

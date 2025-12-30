@@ -43,7 +43,6 @@ Plug 'itchyny/lightline.vim'
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 Plug 'preservim/nerdtree', { 'on': 'NERDTreeToggle' }
-Plug 'inkarkat/vim-ShowTrailingWhitespace', { 'branch': 'stable' }
 
 call plug#end()
 
@@ -68,4 +67,9 @@ nnoremap <leader>s <C-w><down>
 nnoremap <leader>d <C-w><right>
 
 nnoremap <leader>l :noh<CR>
+nnoremap * *N
+nnoremap # #n
+nnoremap <leader>x *Ncgn
+nnoremap <leader>X #ncgn
+
 nnoremap <leader>b :NERDTreeToggle<CR>
