@@ -1,0 +1,2 @@
+(( $+commands[ip] )) && alias ip="ip -color=auto -human-readable"
+alias ls="ls --color=auto --human-readable"

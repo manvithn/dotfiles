@@ -5,6 +5,19 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+## environment
+
+# yadm creates this symlink from the matching OS-specific alternate.
+[[ -r "$ZDOTDIR/conf.d/platform.zsh" ]] &&
+  source "$ZDOTDIR/conf.d/platform.zsh"
+
+# Give user-installed commands highest priority. The `-U` attribute keeps only
+# the first occurrence of each directory in zsh's path array, which is tied to
+# the exported PATH scalar.
+typeset -U path
+[[ -d "$HOME/.local/bin" ]] && path=("$HOME/.local/bin" $path)
+export PATH
+
 ## shell settings
 
 # Keep background processes at full speed
@@ -33,37 +46,29 @@ setopt MENU_COMPLETE
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
 # set up run-help
-unalias run-help
+unalias run-help 2>/dev/null
 autoload -U run-help
 
 ## zgenom config
 
 ZGEN_RESET_ON_CHANGE=(${ZDOTDIR:-$HOME}/.zshrc)
 
-# load zgenom
-source "${ZDOTDIR:-$HOME}/.zgenom/zgenom.zsh"
+# Load plugins after bootstrap has installed zgenom. Until then, the shell still
+# starts with its built-in prompt and completion support.
+if [[ -r "${ZDOTDIR:-$HOME}/.zgenom/zgenom.zsh" ]]; then
+  source "${ZDOTDIR:-$HOME}/.zgenom/zgenom.zsh"
 
-# check for plugin and zgenom updates every 7 days
-# runs in background
-zgenom autoupdate
+  # Check for plugin and zgenom updates every 7 days (in the background).
+  zgenom autoupdate
 
-# if the init script doesn't exist
-if ! zgenom saved; then
-  zgenom load romkatv/powerlevel10k powerlevel10k
-  zgenom load zsh-users/zsh-completions
-  zgenom load zsh-users/zsh-history-substring-search
-  zgenom load zsh-users/zsh-syntax-highlighting
-  zgenom load zsh-users/zsh-autosuggestions
-  # zgenom load marlonrichert/zsh-autocomplete
-
-  # generate the init script from plugins above
-  zgenom save
-fi
-
-# support brew's completion scripts
-if type brew &>/dev/null
-then
-  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
+  if ! zgenom saved; then
+    zgenom load romkatv/powerlevel10k powerlevel10k
+    zgenom load zsh-users/zsh-completions
+    zgenom load zsh-users/zsh-history-substring-search
+    zgenom load zsh-users/zsh-syntax-highlighting
+    zgenom load zsh-users/zsh-autosuggestions
+    zgenom save
+  fi
 fi
 
 # support bash completion scripts
@@ -71,33 +76,18 @@ autoload -U +X bashcompinit && bashcompinit
 
 ## environment and appearance
 
-eval "$(/opt/homebrew/bin/brew shellenv)"
+[[ -r "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
-path=(
-  "$HOME/.local/bin"
-  "$HOME/.local/share/android_sdk/cmdline-tools/latest/bin"
-  "$HOME/.local/share/android_sdk/platform-tools"
-  "$HOME/.local/share/android_sdk/ndk-bundle"
-  "$HOME/homebrew/bin"
-  "$HOME/homebrew/sbin"
-  $path
-)
-
-# export to sub-processes (make it inherited by child processes)
-export PATH
-
-. "$HOME/.cargo/env"
-
-export VISUAL="/opt/homebrew/bin/nvim"
-alias vim=nvim
+if (( $+commands[nvim] )); then
+  export EDITOR="nvim"
+  export VISUAL="$EDITOR"
+  alias vim=nvim
+elif (( $+commands[vim] )); then
+  export EDITOR="vim"
+  export VISUAL="$EDITOR"
+fi
 
 export RIPGREP_CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/rg/ripgreprc"
-
-# add color output
-# diff alias breaks autocomplete on macOS
-# alias diff="diff --color=auto"
-alias ip="ip -color=auto -human-readable"
-alias ls="gls --color=auto --human-readable"
 
 # kittens
 alias kdiff='kitty +kitten diff'
@@ -108,9 +98,11 @@ alias kssh='kitty +kitten ssh'
 # Vi key bindings
 bindkey -v
 
-# Use up/down arrow keys to search history substrings
-bindkey "^[[A" history-substring-search-up
-bindkey "^[[B" history-substring-search-down
+# Use up/down arrow keys to search history substrings when the plugin is loaded.
+if (( ${+widgets[history-substring-search-up]} )); then
+  bindkey "^[[A" history-substring-search-up
+  bindkey "^[[B" history-substring-search-down
+fi
 
 # Backspace follows vim behavior instead of vi
 bindkey -v '^?' backward-delete-char
@@ -119,19 +111,27 @@ bindkey -v '^?' backward-delete-char
 bindkey -v '^[[Z' reverse-menu-complete
 
 # zoxide
-eval "$(zoxide init zsh)"
+(( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
 
 # fzf keybindings
-FZF_DEFAULT_COMMAND="fd -H -L -t=f -c=always --strip-cwd-prefix"
-FZF_CTRL_T_COMMAND="fd -H -L -t=f -t=d -t=l -c=always --strip-cwd-prefix"
-FZF_ALT_C_COMMAND="fd -H -L -t=d -c=always --strip-cwd-prefix"
-FZF_DEFAULT_OPTS="--ansi"
+if (( $+commands[fzf] )); then
+  export FZF_DEFAULT_OPTS="--ansi"
 
-source <(fzf --zsh)
+  if (( $+commands[fd] )); then
+    export FZF_DEFAULT_COMMAND="fd -H -L -t=f -c=always --strip-cwd-prefix"
+    export FZF_CTRL_T_COMMAND="fd -H -L -t=f -t=d -t=l -c=always --strip-cwd-prefix"
+    export FZF_ALT_C_COMMAND="fd -H -L -t=d -c=always --strip-cwd-prefix"
+  fi
 
-# change fzf-cd-widget keybinding from alt-c to ctrl-f
-bindkey -r '\ec'
-bindkey '^F' fzf-cd-widget
+  # Current fzf releases generate the zsh integration on demand.
+  source <(fzf --zsh 2>/dev/null)
+
+  if (( ${+widgets[fzf-cd-widget]} )); then
+    # Change the fzf directory widget from Alt-C to Ctrl-F.
+    bindkey -r '\ec'
+    bindkey '^F' fzf-cd-widget
+  fi
+fi
 
 ## dotgit
 
