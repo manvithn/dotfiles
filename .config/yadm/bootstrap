@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly DRY_RUN="${DOTFILES_BOOTSTRAP_DRY_RUN:-0}"
+readonly XDG_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+readonly XDG_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
+
+log() {
+  printf 'dotfiles: %s\n' "$*"
+}
+
+die() {
+  printf 'dotfiles: error: %s\n' "$*" >&2
+  exit 1
+}
+
+run() {
+  if [[ "$DRY_RUN" == 1 ]]; then
+    printf 'dotfiles: would run:'
+    printf ' %q' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
+
+confirm() {
+  local prompt="$1"
+  local response
+
+  if [[ "$DRY_RUN" == 1 ]]; then
+    log "would prompt: $prompt [y/N]"
+    return
+  fi
+
+  [[ -t 0 ]] || die 'package installation requires an interactive terminal'
+
+  printf 'dotfiles: %s [y/N] ' "$prompt" >&2
+  IFS= read -r response || die 'confirmation input closed'
+
+  case "$response" in
+    y | Y | yes | YES | Yes)
+      ;;
+    *)
+      die 'package installation cancelled'
+      ;;
+  esac
+}
+
+install_macos_packages() {
+  command -v brew >/dev/null 2>&1 ||
+    die 'Homebrew is required on macOS; install it before running bootstrap'
+
+  local brewfile="$XDG_CONFIG_DIR/yadm/packages/macos.Brewfile"
+  [[ -r "$brewfile" ]] || die "missing macOS Brewfile: $brewfile"
+
+  if [[ "$DRY_RUN" != 1 ]] &&
+    brew bundle check --quiet --file="$brewfile" >/dev/null 2>&1; then
+    log 'Homebrew packages already satisfy the Brewfile'
+    return
+  fi
+
+  log 'Homebrew packages and their declared dependency tree:'
+  if [[ "$DRY_RUN" != 1 ]]; then
+    brew bundle check --verbose --file="$brewfile" || true
+  fi
+  run env HOMEBREW_NO_ENV_HINTS=1 \
+    brew deps --tree --annotate --include-optional --brewfile="$brewfile"
+  confirm 'install or update these Brewfile entries and any required related packages?'
+
+  log "installing macOS packages from $brewfile"
+  run brew bundle --file="$brewfile"
+}
+
+install_arch_packages() {
+  command -v pacman >/dev/null 2>&1 ||
+    die 'pacman is required for the Arch Linux bootstrap'
+
+  local package_file="$XDG_CONFIG_DIR/yadm/packages/arch.txt"
+  [[ -r "$package_file" ]] || die "missing Arch package list: $package_file"
+
+  local -a packages=()
+  local package
+  while IFS= read -r package; do
+    [[ -z "$package" || "$package" == \#* ]] && continue
+    packages+=("$package")
+  done < "$package_file"
+
+  ((${#packages[@]} > 0)) || die 'the Arch package list is empty'
+
+  if [[ "$DRY_RUN" != 1 && ! -t 0 ]]; then
+    die 'package installation requires an interactive terminal'
+  fi
+
+  command -v sudo >/dev/null 2>&1 ||
+    die 'sudo is required to install Arch Linux packages'
+
+  log 'pacman will show the resolved transaction and request confirmation'
+  run sudo pacman -S --needed "${packages[@]}"
+}
+
+install_packages() {
+  case "$(uname -s)" in
+    Darwin)
+      install_macos_packages
+      ;;
+    Linux)
+      command -v pacman >/dev/null 2>&1 ||
+        die 'only Arch Linux is currently supported'
+      install_arch_packages
+      ;;
+    *)
+      die "unsupported operating system: $(uname -s)"
+      ;;
+  esac
+}
+
+install_zgenom() {
+  local zgenom_dir="$XDG_CONFIG_DIR/zsh/.zgenom"
+  if [[ -r "$zgenom_dir/zgenom.zsh" ]]; then
+    log 'zgenom is already installed'
+    return
+  fi
+
+  if [[ -e "$zgenom_dir" || -L "$zgenom_dir" ]]; then
+    die "incomplete Zgenom installation at $zgenom_dir;" \
+      'inspect and move it aside before rerunning bootstrap'
+  fi
+
+  log "installing zgenom in $zgenom_dir"
+  run git clone https://github.com/jandamm/zgenom.git "$zgenom_dir"
+}
+
+install_neovim_plugins() {
+  local plug_file="$XDG_DATA_DIR/nvim/site/autoload/plug.vim"
+  if [[ ! -s "$plug_file" ]]; then
+    local plug_temp="${plug_file}.tmp"
+
+    log "installing vim-plug in $plug_file"
+    run curl --fail --location --create-dirs --remove-on-error \
+      --output "$plug_temp" \
+      https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    run mv "$plug_temp" "$plug_file"
+  else
+    log 'vim-plug is already installed'
+  fi
+
+  log 'installing missing Neovim plugins'
+  run nvim --headless '+PlugInstall --sync' '+qa'
+}
+
+main() {
+  if [[ "$DRY_RUN" == 1 ]]; then
+    log 'dry run; no commands will modify the system'
+  elif [[ "$DRY_RUN" != 0 ]]; then
+    die 'DOTFILES_BOOTSTRAP_DRY_RUN must be 0 or 1'
+  fi
+
+  ((EUID != 0)) ||
+    die 'run bootstrap as your normal user; it invokes sudo only for system packages'
+
+  install_packages
+  install_zgenom
+  install_neovim_plugins
+  log 'bootstrap complete; start a new zsh session to initialize shell plugins'
+}
+
+main "$@"

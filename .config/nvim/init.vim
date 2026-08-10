@@ -48,7 +48,8 @@ call plug#end()
 
 let g:seoul256_srgb = 1
 let g:seoul256_background = 234
-colo seoul256
+" The colorscheme becomes available after bootstrap installs the plugins.
+silent! colo seoul256
 
 let g:lightline = {
   \ 'colorscheme': 'seoul256',
