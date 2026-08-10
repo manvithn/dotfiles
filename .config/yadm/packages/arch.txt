@@ -1,0 +1,13 @@
+# Primary packages used by the tracked shell, Git, Kitty, and Neovim configuration.
+curl
+fd
+fzf
+git
+github-cli
+kitty
+neovim
+ripgrep
+ttf-meslo-nerd
+yadm
+zoxide
+zsh
