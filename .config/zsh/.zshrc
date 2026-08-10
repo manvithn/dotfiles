@@ -78,20 +78,15 @@ autoload -U +X bashcompinit && bashcompinit
 
 [[ -r "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
-if (( $+commands[nvim] )); then
-  export EDITOR="nvim"
-  export VISUAL="$EDITOR"
-  alias vim=nvim
-elif (( $+commands[vim] )); then
-  export EDITOR="vim"
-  export VISUAL="$EDITOR"
-fi
+export EDITOR="nvim"
+export VISUAL="$EDITOR"
+alias vim=nvim
 
 export RIPGREP_CONFIG_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/rg/ripgreprc"
 
 # kittens
-alias kdiff='kitty +kitten diff'
-alias kssh='kitty +kitten ssh'
+alias kdiff='kitten diff'
+alias kssh='kitten ssh'
 
 ## key bindings
 
